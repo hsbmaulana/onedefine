@@ -1,0 +1,62 @@
+#!/bin/sh
+
+curl -sL https://raw.githubusercontent.com/hsbmaulana/shlib/1.0.0/bin/run | sh -s docker fgrep egrep grep awk sed || exit 1
+
+if [ ! "$1" ]; then exit 1; fi
+if [ ! "$name" ]; then echo 'Variable (name) needs to be defined.'; exit 1; fi
+if [ ! "$version" ]; then echo 'Variable (version) needs to be defined.'; exit 1; fi
+if [ ! "$ignore" ]; then echo 'Variable (ignore) needs to be defined.'; exit 1; fi
+if [ ! "$build" ]; then echo 'Variable (build) needs to be defined.'; exit 1; fi
+
+usage() { echo "Usage: $0 [build] [remove] [status] [clean] [help]"; exit 1; }
+clean() { docker container rm -f $(docker container ls -a | fgrep -i 'exited' | awk '{print $1}' | sed -z 's/\n/ /g') 2> /dev/null; docker image rm -f $(docker image ls -a | fgrep -i '<none>' | awk '{print $3}' | sed -z 's/\n/ /g') 2> /dev/null; }
+
+case "$1" in
+
+'build')
+clean
+
+if ! docker image ls -a | awk '{print $1":"$2}' | egrep '^'"$name:$version"'$'
+then
+
+cat <<EOF 1> .dockerignore
+$ignore
+EOF
+
+cat <<EOF 1> Dockerfile
+$build
+EOF
+
+docker image build --no-cache --tag "$name:$version" .
+
+rm -f Dockerfile .dockerignore
+docker image save "$name:$version" -o /tmp/"$name".tar
+docker image rm -f "$name:$version"
+docker image load -i /tmp/"$name".tar
+rm -f /tmp/"$name".tar
+
+echo "alias $name-exec"="'docker container run --rm $name:$version'"
+echo "alias $name-sh"="'docker container run --rm -it $name:$version sh'"
+
+fi
+;;
+
+'remove')
+clean
+
+docker image rm -f "$name:$version"
+;;
+
+'status')
+docker image ls -a -f "reference=$name:$version"
+;;
+
+'clean')
+clean
+;;
+
+'help')
+usage
+;;
+
+esac
