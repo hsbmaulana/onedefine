@@ -16,9 +16,6 @@ case "$1" in
 'build')
 clean
 
-if ! docker image ls -a | awk '{print $1":"$2}' | egrep '^'"$name:$version"'$'
-then
-
 cat <<EOF 1> .dockerignore
 $ignore
 EOF
@@ -35,10 +32,8 @@ docker image rm -f "$name:$version"
 docker image load -i /tmp/"$name".tar
 rm -f /tmp/"$name".tar
 
-echo "alias $name-exec"="'docker container run --rm $name:$version'"
-echo "alias $name-sh"="'docker container run --rm -it $name:$version sh'"
-
-fi
+echo "alias $name-exec"="'docker container run -v $(pwd)/:/var/www/$name/ --rm $name:$version'"
+echo "alias $name-sh"="'docker container run -v $(pwd)/:/var/www/$name/ --rm -it $name:$version sh'"
 ;;
 
 'remove')
